@@ -4,26 +4,32 @@ from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 
 from orders_svc.orders_svc import *
+from orders_svc.schemas import NewOrder
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# TODO
+# filter with query parameters, status, user_id
+
 @app.get("/orders")
 async def get_orders(user_id: str = None):
-    # if user_id is None:
-    res = await get_all_orders(user_id)
-    # else:
-        # res = await get_orders(user_id)
-    return {'ere': res}
+    logger.info("Request received to retrieve orders")
 
-@app.get("/orders/{id}")
-def get_order_by_id(id: str):
-    pass
+    return await get_all_orders(user_id)
+
+@app.get("/orders/{order_id}")
+async def get_order(order_id: str):
+    logger.info(f"Request received to retrieve order: `{order_id}`")
+
+    res = await get_order_by_order_id(order_id)
+    return res
 
 @app.post("/orders")
-def create_order():
-    pass
+async def create_order(new_order: NewOrder):
+    res = await create_new_order(new_order)
+    return res#.json()
 
 @app.post("/orders/{id}/cancel")
 def cancel_order():

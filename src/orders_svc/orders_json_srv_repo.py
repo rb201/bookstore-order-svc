@@ -42,4 +42,24 @@ async def fetch_item(item_id):
     async with httpx.AsyncClient() as client:
         res = await client.get(f"{inv_url}/items/{item_id}")
 
+        if res.status_code == 404:
+            return None
+
         return res
+
+async def save_order(order):
+    payload = order.model_dump()
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            url = f"{url}/orders",
+            json = payload
+        )
+
+        return res.json()
+
+async def cancel_order(order_id):
+    async with httpx.AsyncClient() as client:
+        res = await client.post
+
+async def update_inventory_sold(): pass

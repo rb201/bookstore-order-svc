@@ -28,12 +28,28 @@ async def get_order(order_id: str):
 
 @app.post("/orders")
 async def create_order(new_order: NewOrder):
+    logger.info("Request for new order received")
     res = await create_new_order(new_order)
-    return res#.json()
 
-@app.post("/orders/{id}/cancel")
-def cancel_order():
-    pass
+    if res.get("error") == "ORDER_UNPROCESSABLE":
+        raise HTTPException(
+            status_code = 422,
+            detail = res
+        )
+    return res
+
+@app.post("/orders/{order_id}/cancel")
+async def cancel_order_req(order_id):
+    logger.info(f"Request received to cancel order for order no: {order_id}")
+    res = await cancel_order(order_id)
+
+    if res.get("error") == "ORDER_NOT_CANCELABLE":
+        raise HTTPException(
+            status_code = 422,
+            detail = res
+        )
+
+    return res
 
 @app.patch("/orders/{id}/")
 def update_order(): pass

@@ -55,5 +55,5 @@ async def create_new_order(new_order):
             "detail": item_not_in_inv
         }
 
-     # check stock
+     # check stock test
     return

@@ -52,9 +52,12 @@ async def save_order(order):
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
-            url = f"{url}/orders",
+            url = f"{url}/orderss",
             json = payload
         )
+
+        if res.status_code != 200:
+            return res.raise_for_status()
 
         return res.json()
 
@@ -62,4 +65,31 @@ async def cancel_order(order_id):
     async with httpx.AsyncClient() as client:
         res = await client.post
 
-async def update_inventory_sold(): pass
+async def inventory_item_decrease(book_id, quantity):
+    payload = {"stock_quantity": quantity}
+
+    logger.info(f"Requesting reserve of {quantity} {book_id}")
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            url = f"{inv_url}/items/{book_id}/sell?stock_quantity={quantity}",
+        )
+
+        if res.status_code == 200:
+            logger.info(f"Reserved {quantity} of {book_id}")
+            return
+
+        return {"error": f"seomthing happened {res}"}
+
+
+async def inventory_item_increase(book_id, quantity):
+    payload = {"stock_quantity": quantity}
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(f"{inv_url}/items/{book_id}/receive?stock_quantity={quantity}")
+
+        if res.status_code == 200:
+            logger.info(f"Unreserved {quantity} of {book_id}")
+            return
+
+        return {"error": f"seomthing happened {res}"}
+

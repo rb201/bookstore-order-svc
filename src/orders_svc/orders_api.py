@@ -30,12 +30,18 @@ async def get_order(order_id: str):
 async def create_order(new_order: NewOrder):
     logger.info("Request for new order received")
     res = await create_new_order(new_order)
+    print(res)
 
     if res.get("error") == "ORDER_UNPROCESSABLE":
         raise HTTPException(
             status_code = 422,
             detail = res
         )
+    # elif res.get("error") == "ORDER_NOT_SAVED":
+    #     raise HTTPException(
+    #         status_code = res["status_code"],
+    #         detail = res
+    #     )
     return res
 
 @app.post("/orders/{order_id}/cancel")

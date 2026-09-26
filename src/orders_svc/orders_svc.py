@@ -20,12 +20,13 @@ async def get_order_by_order_id(order_id: str):
     return await fetch_order_by_order_id(order_id)
 
 async def check_inv_and_stock(new_order):
+    logger.info("Checking inventory availability")
     order_errors = []
     item_not_in_inv = []
     item_not_enough_inv = []
 
     for item in new_order.order_info.items:
-        print(f"{item.book_id}: {item.quantity} wanted")
+        logger.info(f"OrderItem: Item {item.book_id}: qty {item.quantity}")
         res = await fetch_item(item.book_id)
 
         if res is None:
@@ -34,7 +35,8 @@ async def check_inv_and_stock(new_order):
             continue
 
         item_inv_qty = res.json().get('stock_quantity')
-        print(f"item {item.book_id} current stock {item_inv_qty}")
+        logger.info("Checking inventory")
+        logger.info(f"Item {item.book_id} current stock {item_inv_qty}")
 
         if item_inv_qty < item.quantity:
             logger.info(f"Item {item.book_id} does not have enough inv")
@@ -45,6 +47,7 @@ async def check_inv_and_stock(new_order):
 async def create_new_order(new_order):
     order_errors, item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
 
+    ## move to new function
     if item_not_in_inv:
         logger.info(f"Order can not be completed. These items do not exist {item_not_in_inv}")
 
@@ -72,8 +75,34 @@ async def create_new_order(new_order):
         order_error_msg["details"] = order_errors
 
         return order_error_msg
+    ##
+    logger.info("Order has been validated")
+    # reserver/reduce inv
+    logger.info("Reserving items")
+    for item in new_order.order_info.items:
+        book_id = item.book_id
+        quantity = item.quantity
 
-    return await save_order(new_order)
+        await inventory_item_decrease(book_id, quantity)
+
+    try:
+        print('trying')
+        return await save_order(new_order)
+    except Exception as err:
+        print("undoing")
+        # give back reserver; inc inv
+        for item in new_order.order_info.items:
+            book_id = item.book_id
+            quantity = item.quantity
+
+            await inventory_item_increase(book_id, quantity)
+            return {}
+            # return {
+            #     "error": "ORDER_NOT_SAVED",
+            #     "msg": "Unable to save the order",
+            #     "detail": err,
+            #     "status_code": err.response.status_code
+            # }
 
 async def cancel_order(order_id):
     cancelable_orders = [
@@ -93,3 +122,4 @@ async def cancel_order(order_id):
         "msg": f"Can not cancel order, its current status is {order_status}"
     }
 
+async def reserve_inv(new_order): pass

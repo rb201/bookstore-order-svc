@@ -1,7 +1,6 @@
 import logging
 
 import httpx
-from fastapi import HTTPException
 
 from orders_svc.helper import add_correlation_id_header
 

@@ -52,12 +52,13 @@ async def save_order(order):
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
-            url = f"{url}/orderss",
+            url = f"{url}/orders",
             json = payload
         )
 
-        if res.status_code != 200:
-            return res.raise_for_status()
+        if res.status_code not in [200, 201]:
+            logger.info(f"Order not saved: {res.status_code}")
+            return res.raise_for_status().json()
 
         return res.json()
 
@@ -78,8 +79,7 @@ async def inventory_item_decrease(book_id, quantity):
             logger.info(f"Reserved {quantity} of {book_id}")
             return
 
-        return {"error": f"seomthing happened {res}"}
-
+        res.raise_for_status()
 
 async def inventory_item_increase(book_id, quantity):
     payload = {"stock_quantity": quantity}

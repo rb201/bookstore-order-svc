@@ -83,26 +83,30 @@ async def create_new_order(new_order):
         book_id = item.book_id
         quantity = item.quantity
 
-        await inventory_item_decrease(book_id, quantity)
+        # try/catch here;retry
+        res = await inventory_item_decrease(book_id, quantity)
 
     try:
-        print('trying')
         return await save_order(new_order)
     except Exception as err:
-        print("undoing")
-        # give back reserver; inc inv
+        req_url = err.request.url
+        req_method = err.request.method
+        status_code = err.response.status_code
+        msg = f"Failed with {status_code} on {req_method} {req_url}"
+
         for item in new_order.order_info.items:
             book_id = item.book_id
             quantity = item.quantity
 
+            # try/catch here for retry
             await inventory_item_increase(book_id, quantity)
-            return {}
-            # return {
-            #     "error": "ORDER_NOT_SAVED",
-            #     "msg": "Unable to save the order",
-            #     "detail": err,
-            #     "status_code": err.response.status_code
-            # }
+
+        return {
+            "error": "ORDER_NOT_SAVED",
+            "msg": "Unable to save the order",
+            "detail": msg,
+            "status_code": status_code
+        }
 
 async def cancel_order(order_id):
     cancelable_orders = [

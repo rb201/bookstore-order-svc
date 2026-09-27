@@ -116,6 +116,9 @@ async def cancel_order(order_id):
 
     res = await get_order_by_order_id(order_id)
 
+    if res is None:
+        return res
+
     order_status = res.get("status")
 
     if order_status in cancelable_orders:

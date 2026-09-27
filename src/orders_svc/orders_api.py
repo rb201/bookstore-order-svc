@@ -9,7 +9,10 @@ from orders_svc.schemas import NewOrder
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(
+    CorrelationIdMiddleware,
+    header_name='X-Correlation-ID',
+)
 
 # TODO
 # filter with query parameters, status, user_id

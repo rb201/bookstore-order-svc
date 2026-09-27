@@ -122,8 +122,9 @@ async def cancel_order(order_id):
     order_status = res.get("status")
 
     if order_status in cancelable_orders:
-        return {}
-    
+        return await orders_repo.cancel_order(order_id)
+
+    # maybe redo this vv
     return {
         "error": "ORDER_NOT_CANCELABLE",
         "msg": f"Can not cancel order, its current status is {order_status}"

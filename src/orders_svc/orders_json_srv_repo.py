@@ -62,8 +62,16 @@ async def save_order(order):
         return res.json()
 
 async def cancel_order(order_id):
-    async with httpx.AsyncClient() as client:
-        res = await client.post
+    async with httpx.AsyncClient(event_hooks={"requests": [add_correlation_id_header]}) as client:
+        payload = {
+            "status": "cancelled"
+        }
+        res = await client.patch(
+            url = f"{url}/orders/{order_id}",
+            json = payload
+        )
+
+        return res.json()
 
 async def inventory_item_decrease(book_id, quantity):
     payload = {"stock_quantity": quantity}
@@ -91,4 +99,3 @@ async def inventory_item_increase(book_id, quantity):
             return
 
         return {"error": f"seomthing happened {res}"}
-

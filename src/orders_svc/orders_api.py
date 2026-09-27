@@ -61,7 +61,7 @@ async def create_order(new_order: NewOrder):
 
 @app.post("/orders/{order_id}/cancel")
 async def cancel_order(order_id):
-    logger.info(f"Request received to cancel order for order no: {order_id}")
+    logger.info(f"Request received to cancel order no: {order_id}")
     res = await orders_svc.cancel_order(order_id)
 
     if res is None:

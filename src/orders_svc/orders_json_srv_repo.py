@@ -10,21 +10,24 @@ logger = logging.getLogger(__name__)
 url =  "http://localhost:3000"
 inv_url = "http://localhost:8000"
 
-async def fetch_all_orders():
+async def get_all_orders():
     async with httpx.AsyncClient() as client:
         res = await client.get(f"{url}/orders")
 
         return res.json()
 
-async def fetch_all_orders_by_user_id(user_id: str):
+async def get_all_orders_by_user_id(user_id: str):
     logger.info("Fetching now")
 
     async with httpx.AsyncClient() as client:
         res = await client.get(f"{url}/orders?user_id={user_id}")
 
+        if not res.json() and res.status_code == 200:
+            logger.info(f"{user_id} has no orders")
+
         return res.json()
 
-async def fetch_order_by_order_id(order_id: str):
+async def get_order_by_order_id(order_id: str):
     async with httpx.AsyncClient() as client:
         res = await client.get(f"{url}/orders/{order_id}")
 
@@ -34,7 +37,7 @@ async def fetch_order_by_order_id(order_id: str):
 
         return res.json()
 
-async def fetch_item(item_id):
+async def get_item(item_id):
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
         res = await client.get(f"{inv_url}/items/{item_id}")
 

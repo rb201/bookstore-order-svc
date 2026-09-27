@@ -1,6 +1,6 @@
 import logging
 
-from orders_svc.orders_json_srv_repo import *
+from . import orders_json_srv_repo as orders_repo
 
 logger = logging.getLogger(__name__)
 
@@ -8,16 +8,16 @@ async def get_all_orders(user_id):
     if user_id is not None:
         logger.info(f"Fetching orders for {user_id}")
 
-        res = await fetch_all_orders_by_user_id(user_id)
+        res = await orders_repo.get_all_orders_by_user_id(user_id)
     else:
         logger.info(f"Fetching all orders")
 
-        res = await fetch_all_orders()
+        res = await orders_repo.get_all_orders()
 
     return res
 
 async def get_order_by_order_id(order_id: str):
-    return await fetch_order_by_order_id(order_id)
+    return await orders_repo.get_order_by_order_id(order_id)
 
 async def check_inv_and_stock(new_order):
     logger.info("Checking inventory availability")
@@ -27,7 +27,7 @@ async def check_inv_and_stock(new_order):
 
     for item in new_order.order_info.items:
         logger.info(f"OrderItem: Item {item.book_id}: qty {item.quantity}")
-        res = await fetch_item(item.book_id)
+        res = await orders_repo.get_item(item.book_id)
 
         if res is None:
             logger.info(f"Item {item.book_id} not found in inv")
@@ -44,7 +44,7 @@ async def check_inv_and_stock(new_order):
 
     return order_errors, item_not_in_inv, item_not_enough_inv
 
-async def create_new_order(new_order):
+async def create_order(new_order):
     order_errors, item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
 
     ## move to new function
@@ -84,10 +84,10 @@ async def create_new_order(new_order):
         quantity = item.quantity
 
         # try/catch here;retry
-        res = await inventory_item_decrease(book_id, quantity)
+        res = await orders_repo.inventory_item_decrease(book_id, quantity)
 
     try:
-        return await save_order(new_order)
+        return await orders_repo.save_order(new_order)
     except Exception as err:
         req_url = err.request.url
         req_method = err.request.method
@@ -99,7 +99,7 @@ async def create_new_order(new_order):
             quantity = item.quantity
 
             # try/catch here for retry
-            await inventory_item_increase(book_id, quantity)
+            await orders_repo.inventory_item_increase(book_id, quantity)
 
         return {
             "error": "ORDER_NOT_SAVED",

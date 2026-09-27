@@ -1,9 +1,9 @@
 import logging
 
 from asgi_correlation_id import CorrelationIdMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
-from orders_svc.orders_svc import *
+from . import orders_svc
 from orders_svc.schemas import NewOrder
 
 logger = logging.getLogger(__name__)
@@ -18,16 +18,16 @@ app.add_middleware(
 # filter with query parameters, status, user_id
 
 @app.get("/orders")
-async def get_orders(user_id: str = None):
+async def get_all_orders(user_id: str = None):
     logger.info("Request received to retrieve orders")
 
-    return await get_all_orders(user_id)
+    return await orders_svc.get_all_orders(user_id)
 
 @app.get("/orders/{order_id}")
 async def get_order(order_id: str):
     logger.info(f"Request received to retrieve order: `{order_id}`")
 
-    res = await get_order_by_order_id(order_id)
+    res = await orders_svc.get_order_by_order_id(order_id)
 
     if res is None:
         raise HTTPException(
@@ -39,7 +39,7 @@ async def get_order(order_id: str):
 @app.post("/orders")
 async def create_order(new_order: NewOrder):
     logger.info("Request for new order received")
-    res = await create_new_order(new_order)
+    res = await orders_svc.create_order(new_order)
 
     if res.get("status_code") == 404:
         logger.critical(f"Order not saved: {res.get("detail")}")
@@ -60,9 +60,9 @@ async def create_order(new_order: NewOrder):
     return res
 
 @app.post("/orders/{order_id}/cancel")
-async def cancel_order_req(order_id):
+async def cancel_order(order_id):
     logger.info(f"Request received to cancel order for order no: {order_id}")
-    res = await cancel_order(order_id)
+    res = await orders_svc.cancel_order(order_id)
 
     if res is None:
         logger.error(f"Cancel order request failed. Order {order_id} not found.")

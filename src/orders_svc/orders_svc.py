@@ -129,5 +129,3 @@ async def cancel_order(order_id):
         "error": "ORDER_NOT_CANCELABLE",
         "msg": f"Can not cancel order, its current status is {order_status}"
     }
-
-async def reserve_inv(new_order): pass

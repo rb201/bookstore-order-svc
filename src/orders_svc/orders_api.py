@@ -28,6 +28,12 @@ async def get_order(order_id: str):
     logger.info(f"Request received to retrieve order: `{order_id}`")
 
     res = await get_order_by_order_id(order_id)
+
+    if res is None:
+        raise HTTPException(
+            detail = {f"msg": f"Order no {order_id} not found"},
+            status_code = 404
+        )
     return res
 
 @app.post("/orders")
@@ -57,6 +63,17 @@ async def create_order(new_order: NewOrder):
 async def cancel_order_req(order_id):
     logger.info(f"Request received to cancel order for order no: {order_id}")
     res = await cancel_order(order_id)
+
+    if res is None:
+        logger.error(f"Cancel order request failed. Order {order_id} not found.")
+
+        raise HTTPException(
+            status_code = 404,
+            detail = {
+                "error": "ORDER_NOT_FOUND",
+                "msg" : f"Request received to cancel order for order no: {order_id}"
+            }
+        )
 
     if res.get("error") == "ORDER_NOT_CANCELABLE":
         raise HTTPException(

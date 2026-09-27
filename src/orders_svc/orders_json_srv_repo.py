@@ -29,15 +29,9 @@ async def fetch_order_by_order_id(order_id: str):
         res = await client.get(f"{url}/orders/{order_id}")
 
         if res.status_code == 404:
-            raise HTTPException(
-                status_code = 404,
-                detail = {
-                    'error': "ORDER_NOT_FOUND",
-                    'msg': f"The order `{order_id}` was not found"
-                }
-            )
+            logger.info(f"Order no {order_id} was not found")
+            return None
 
-        logger.info(f"Order `{order_id}` found")
         return res.json()
 
 async def fetch_item(item_id):

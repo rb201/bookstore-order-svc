@@ -31,7 +31,7 @@ async def get_order_by_order_id(order_id: str):
         res = await client.get(f"{url}/orders/{order_id}")
 
         if res.status_code == 404:
-            logger.info(f"Order no {order_id} was not found")
+            logger.info(f"ORDER_NOT_FOUND. Order no {order_id} was not found")
             return None
 
         return res.json()

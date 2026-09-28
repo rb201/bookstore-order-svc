@@ -3,7 +3,7 @@ import logging
 from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI, HTTPException
 
-from . import orders_svc
+from . import orders_svc, exceptions
 from orders_svc.schemas import NewOrder
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,8 @@ app.add_middleware(
     CorrelationIdMiddleware,
     header_name='X-Correlation-ID',
 )
+
+exceptions.register_exception_handlers(app)
 
 # TODO
 # filter with query parameters, status, user_id
@@ -30,9 +32,12 @@ async def get_order(order_id: str):
     res = await orders_svc.get_order_by_order_id(order_id)
 
     if res is None:
-        raise HTTPException(
-            detail = {f"msg": f"Order no {order_id} not found"},
-            status_code = 404
+        raise exceptions.OrderNotFound(
+            order_id = order_id,
+            detail = {
+                "error": "ORDER_ID_DOES_NOT_EXISTS",
+                "detail": "Order not found"
+            }
         )
     return res
 

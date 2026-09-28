@@ -1,6 +1,7 @@
 import logging
 
 from . import orders_json_srv_repo as orders_repo
+from . import exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -117,15 +118,21 @@ async def cancel_order(order_id):
     res = await get_order_by_order_id(order_id)
 
     if res is None:
-        return res
+        raise exceptions.OrderNotFound(
+            order_id = order_id,
+            detail = {
+                "error": "ORDER_ID_DOES_NOT_EXISTS",
+                "detail": "Order not found"
+            }
+        )
 
     order_status = res.get("status")
 
-    if order_status in cancelable_orders:
-        return await orders_repo.cancel_order(order_id)
+    if order_status not in cancelable_orders:
+        raise
+        return {
+            "error": "ORDER_NOT_CANCELABLE",
+            "msg": f"Can not cancel order, its current status is {order_status}"
+        }
 
-    # maybe redo this vv
-    return {
-        "error": "ORDER_NOT_CANCELABLE",
-        "msg": f"Can not cancel order, its current status is {order_status}"
-    }
+    return await orders_repo.cancel_order(order_id)

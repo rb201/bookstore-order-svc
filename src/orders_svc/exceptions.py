@@ -19,6 +19,23 @@ class OrderNotCancelable(Exception):
 
         super().__init__(self.msg)
 
+class OrderUnprocessable(Exception):
+    def __init__(self, detail: str|dict, status_code: int = 422):
+        self.detail = detail
+        self.status_code = status_code
+        self.msg = f"{self.detail}"
+
+        super().__init__(self.msg)
+
+class OrderNotSaved(Exception):
+    def __init__(self, detail: str|dict, status_code: int = 503):
+        self.detail = detail
+        self.status_code = status_code
+        self.msg = f"Order not saved. {self.detail}"
+
+        super().__init__(self.msg)
+
+
 async def order_not_found_handler(request, err):
     return JSONResponse(
         status_code = err.status_code,
@@ -28,7 +45,7 @@ async def order_not_found_handler(request, err):
         }
     )
 
-async def order_not_cancelable(request, err):
+async def order_not_cancelable_handler(request, err):
     return JSONResponse(
         status_code = err.status_code,
         content = {
@@ -37,9 +54,23 @@ async def order_not_cancelable(request, err):
         }
     )
 
+async def order_unprocessable_handler(request, err):
+    return JSONResponse(
+        status_code = err.status_code,
+        content = err.detail
+    )
+
+async def order_not_saved_handler(request, err):
+    return JSONResponse(
+        status_code = err.status_code,
+        content = {"detail": err.detail}
+    )
+
 EXCEPTION_HANDLERS = {
     OrderNotFound: order_not_found_handler,
-    OrderNotCancelable :order_not_cancelable
+    OrderNotCancelable :order_not_cancelable_handler,
+    OrderUnprocessable: order_unprocessable_handler,
+    OrderNotSaved: order_not_saved_handler
 }
 
 def register_exception_handlers(app: FastAPI):

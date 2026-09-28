@@ -27,17 +27,14 @@ async def get_all_orders(user_id: str = None):
 
 @app.get("/orders/{order_id}")
 async def get_order(order_id: str):
-    logger.info(f"Request received to retrieve order: `{order_id}`")
+    logger.info(f"Request received to retrieve order no: `{order_id}`")
 
     res = await orders_svc.get_order_by_order_id(order_id)
 
     if res is None:
         raise exceptions.OrderNotFound(
             order_id = order_id,
-            detail = {
-                "error": "ORDER_ID_DOES_NOT_EXISTS",
-                "detail": "Order not found"
-            }
+            detail = "Order ID does not exist"
         )
     return res
 
@@ -67,26 +64,7 @@ async def create_order(new_order: NewOrder):
 @app.post("/orders/{order_id}/cancel")
 async def cancel_order(order_id):
     logger.info(f"Request received to cancel order no: {order_id}")
-    res = await orders_svc.cancel_order(order_id)
-
-    if res is None:
-        logger.error(f"Cancel order request failed. Order {order_id} not found.")
-
-        raise HTTPException(
-            status_code = 404,
-            detail = {
-                "error": "ORDER_NOT_FOUND",
-                "msg" : f"Request received to cancel order for order no: {order_id}"
-            }
-        )
-
-    if res.get("error") == "ORDER_NOT_CANCELABLE":
-        raise HTTPException(
-            status_code = 422,
-            detail = res
-        )
-
-    return res
+    return await orders_svc.cancel_order(order_id)
 
 @app.patch("/orders/{id}/")
 def update_order(): pass

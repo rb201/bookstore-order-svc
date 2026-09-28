@@ -22,7 +22,7 @@ async def get_order_by_order_id(order_id: str):
 
 async def check_inv_and_stock(new_order):
     logger.info("Checking inventory availability")
-    order_errors = []
+
     item_not_in_inv = []
     item_not_enough_inv = []
 
@@ -43,12 +43,11 @@ async def check_inv_and_stock(new_order):
             logger.info(f"Item {item.book_id} does not have enough inv")
             item_not_enough_inv.append(item.book_id)
 
-    return order_errors, item_not_in_inv, item_not_enough_inv
+    return item_not_in_inv, item_not_enough_inv
 
-async def create_order(new_order):
-    order_errors, item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
+async def validate_order(item_not_in_inv, item_not_enough_inv):
+    order_errors = []
 
-    ## move to new function
     if item_not_in_inv:
         logger.info(f"Order can not be completed. These items do not exist {item_not_in_inv}")
 
@@ -75,11 +74,21 @@ async def create_order(new_order):
         }
         order_error_msg["details"] = order_errors
 
-        return order_error_msg
-    ##
-    logger.info("Order has been validated")
-    # reserver/reduce inv
-    logger.info("Reserving items")
+        raise exceptions.OrderUnprocessable(
+            detail = order_error_msg
+        )
+
+    return True
+
+
+async def create_order(new_order):
+    item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
+
+    order_validated = await validate_order(item_not_in_inv, item_not_enough_inv)
+
+    if not order_validated: return
+
+    logger.info("Order has been validated. Reserving items")
     for item in new_order.order_info.items:
         book_id = item.book_id
         quantity = item.quantity
@@ -102,12 +111,10 @@ async def create_order(new_order):
             # try/catch here for retry
             await orders_repo.inventory_item_increase(book_id, quantity)
 
-        return {
-            "error": "ORDER_NOT_SAVED",
-            "msg": "Unable to save the order",
-            "detail": msg,
-            "status_code": status_code
-        }
+        raise exceptions.OrderNotSaved(
+            detail = "Not sure what happened"
+        )
+
 
 async def cancel_order(order_id):
     cancelable_orders = [
@@ -118,21 +125,21 @@ async def cancel_order(order_id):
     res = await get_order_by_order_id(order_id)
 
     if res is None:
+        logger.info(f"Cancel order request failed. Order {order_id} not found.")
+
         raise exceptions.OrderNotFound(
             order_id = order_id,
-            detail = {
-                "error": "ORDER_ID_DOES_NOT_EXISTS",
-                "detail": "Order not found"
-            }
+            detail = "Order ID does not exist"
         )
 
     order_status = res.get("status")
 
     if order_status not in cancelable_orders:
-        raise
-        return {
-            "error": "ORDER_NOT_CANCELABLE",
-            "msg": f"Can not cancel order, its current status is {order_status}"
-        }
+        logger.info(f"Order can not be cancelled. Current state: {order_status}")
+
+        raise exceptions.OrderNotCancelable(
+            order_id = order_id,
+            detail = f"Order is in a {order_status} state. Can not cancel"
+        )
 
     return await orders_repo.cancel_order(order_id)

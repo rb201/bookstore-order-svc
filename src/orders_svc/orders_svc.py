@@ -5,7 +5,7 @@ from . import exceptions
 
 logger = logging.getLogger(__name__)
 
-async def get_all_orders(user_id):
+async def get_all_orders(user_id: str = None):
     if user_id is not None:
         logger.info(f"Fetching orders for {user_id}")
 
@@ -80,7 +80,6 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
 
     return True
 
-
 async def create_order(new_order):
     item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
 
@@ -114,7 +113,6 @@ async def create_order(new_order):
         raise exceptions.OrderNotSaved(
             detail = "Not sure what happened"
         )
-
 
 async def cancel_order(order_id):
     cancelable_orders = [

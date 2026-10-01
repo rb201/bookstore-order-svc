@@ -1,0 +1,108 @@
+import pytest
+
+from orders_svc import orders_svc, exceptions
+
+@pytest.mark.asyncio
+async def test_get_all_orders_for_user_doesnt_exists(mocker):
+    user = "user0001"
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_all_orders_by_user_id",
+        return_value = []
+    )
+
+    res = await orders_svc.get_all_orders(user)
+
+    assert res == []
+
+@pytest.mark.asyncio
+async def test_get_all_orders_for_user_exists(mocker):
+    user = "user01"
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_all_orders_by_user_id",
+        return_value = [
+            {
+                "id": "orders01",
+                "user_id": "user01",
+                "order_info": {
+                    "items": [
+                        {},
+                        {},
+                        {}
+                    ]
+                }
+            },
+            {
+                "id": "orders01",
+                "user_id": "user01",
+            }
+        ]
+    )
+
+    res = await orders_svc.get_all_orders(user)
+
+    assert res[1]["user_id"] == user
+    assert len(res) == 2
+    assert len(res[0]["order_info"]["items"]) == 3
+
+@pytest.mark.asyncio
+async def test_get_all_orders_success(mocker):
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_all_orders",
+        return_value = [
+            {
+                "id": "order01"
+            },
+            {
+                "id": "order02"
+            }
+        ]
+    )
+
+    res = await orders_svc.get_all_orders()
+
+    assert len(res) == 2
+
+@pytest.mark.asyncio
+async def test_get_order_by_id_failure(mocker):
+    order_id = "order00000"
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_order_by_order_id",
+        return_value = {
+            "error": "ORDER_NOT_FOUND"
+        }
+    )
+
+    res = await orders_svc.get_order_by_order_id(order_id)
+
+    assert res["error"] == "ORDER_NOT_FOUND"
+
+@pytest.mark.asyncio
+async def test_get_order_by_id_success(mocker):
+    order_id = "order01"
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_order_by_order_id",
+        return_value = {
+            "id": order_id,
+            "order_info": {
+                "items": [
+                    {},{}
+                ]
+            }
+        }
+    )
+
+    res = await orders_svc.get_order_by_order_id(order_id)
+
+    assert res["id"] == order_id
+    assert len(res["order_info"]["items"]) == 2
+
+# @pytest.mark.asyncio
+# async def test_cancel_order(mocker):
+#     mocker.patch(
+#         "orders_svc.orders_svc.get_order_by_order_id",
+
+#     )

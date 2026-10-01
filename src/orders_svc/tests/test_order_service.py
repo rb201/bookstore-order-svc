@@ -100,9 +100,40 @@ async def test_get_order_by_id_success(mocker):
     assert res["id"] == order_id
     assert len(res["order_info"]["items"]) == 2
 
-# @pytest.mark.asyncio
-# async def test_cancel_order(mocker):
-#     mocker.patch(
-#         "orders_svc.orders_svc.get_order_by_order_id",
+@pytest.mark.asyncio
+async def test_cancel_order_orderid_doesnt_exist(mocker):
+    mocker.patch(
+        "orders_svc.orders_svc.get_order_by_order_id",
+        return_value = None
+    )
 
-#     )
+    with pytest.raises(exceptions.OrderNotFound):
+        await orders_svc.cancel_order("order000")
+
+@pytest.mark.asyncio
+async def test_cancel_order_fail_uncancelable_state(mocker):
+    mocker.patch(
+        "orders_svc.orders_svc.get_order_by_order_id",
+        return_value = { "status": "shipped"}
+    )
+
+    with pytest.raises(exceptions.OrderNotCancelable):
+        await orders_svc.cancel_order("order01")
+
+@pytest.mark.asyncio
+async def test_cancel_order_success(mocker):
+    order_id = "order01"
+
+    mocker.patch(
+        "orders_svc.orders_svc.get_order_by_order_id",
+        return_value = { "status": "created"}
+    )
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.cancel_order",
+        return_value = { "status": "cancelled"}
+    )
+
+    res = await orders_svc.cancel_order(order_id)
+
+    assert res["status"] == "cancelled"

@@ -35,7 +35,7 @@ async def check_inv_and_stock(new_order):
             item_not_in_inv.append(item.book_id)
             continue
 
-        item_inv_qty = res.json().get('stock_quantity')
+        item_inv_qty = res.get('stock_quantity')
         logger.info("Checking inventory")
         logger.info(f"Item {item.book_id} current stock {item_inv_qty}")
 

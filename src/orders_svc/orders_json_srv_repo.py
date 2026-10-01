@@ -43,7 +43,7 @@ async def get_item(item_id):
         if res.status_code == 404:
             return None
 
-        return res
+        return res.json()
 
 async def save_order(order):
     payload = order.model_dump()

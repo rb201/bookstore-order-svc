@@ -257,11 +257,23 @@ async def test_validate_order_success(mocker):
 
     assert res == True
 
-@pytest.mark.syncio
+@pytest.mark.asyncio
 async def test_create_order_success(mocker):
+    new_order_obj = mocker.Mock()
+
+    item_01 = mocker.Mock()
+    item_01.book_id = "BK-1002"
+    item_01.quantity = 1
+
+    item_02 = mocker.Mock()
+    item_02.book_id = "BK-1003"
+    item_02.quantity = 100
+
+    new_order_obj.order_info.items = [item_01, item_02]
+
     mocker.patch(
         "orders_svc.orders_svc.check_inv_and_stock",
-        return_value = [], []
+        return_value = ([], [])
     )
 
     mocker.patch(
@@ -279,4 +291,6 @@ async def test_create_order_success(mocker):
         return_value = {"status": "created"}
     )
 
-    res = await orders_svc.
+    res = await orders_svc.create_order(new_order_obj)
+
+    assert res["status"] == "created"

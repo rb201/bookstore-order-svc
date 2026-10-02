@@ -83,7 +83,7 @@ async def inventory_item_decrease(book_id, quantity):
 
         if res.status_code == 200:
             logger.info(f"Reserved {quantity} of {book_id}")
-            return
+            return res.json()
 
         res.raise_for_status()
 

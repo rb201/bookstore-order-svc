@@ -10,7 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
     "asgi-correlation-id>=5.0.1",
     "fastapi[standard]>=0.141.1",
-    "httpx>=0.28.1",
+    "httpx2>=2.13.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-mock>=3.16.0",
@@ -22,3 +22,8 @@ orders-svc = "orders_svc:main"
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:The anyio\\.abc\\.BlockingPortal alias is deprecated:DeprecationWarning",
+]

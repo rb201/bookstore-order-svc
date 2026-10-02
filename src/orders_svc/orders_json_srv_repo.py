@@ -1,6 +1,6 @@
 import logging
 
-import httpx
+import httpx2 as httpx
 
 from orders_svc.helper import add_correlation_id_header
 

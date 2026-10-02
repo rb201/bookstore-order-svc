@@ -137,3 +137,146 @@ async def test_cancel_order_success(mocker):
     res = await orders_svc.cancel_order(order_id)
 
     assert res["status"] == "cancelled"
+
+@pytest.mark.asyncio
+async def test_check_inv_and_stock_success(mocker):
+    new_order_obj = mocker.Mock()
+
+    item_01 = mocker.Mock()
+    item_01.book_id = "BK-1002"
+    item_01.quantity = 1
+
+    item_02 = mocker.Mock()
+    item_02.book_id = "BK-1003"
+    item_02.quantity = 1
+
+    new_order_obj.order_info.items = [item_01, item_02]
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_item",
+        side_effect = [
+            {
+                "book_id": "BK-1002",
+                "stock_quantity": 10
+            },
+            {
+                "book_id": "BK-1003",
+                "stock_quantity": 10
+            }
+        ]
+    )
+
+    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
+
+    assert res1 == [] and res2 == []
+
+@pytest.mark.asyncio
+async def test_check_inv_and_stock_item_doesnt_exists(mocker):
+    book_id = "BK-0000000"
+    new_order_obj = mocker.Mock()
+
+    item_01 = mocker.Mock()
+    item_01.book_id = book_id
+    item_01.quantity = 1
+
+    item_02 = mocker.Mock()
+    item_02.book_id = "BK-1003"
+    item_02.quantity = 1
+
+    new_order_obj.order_info.items = [item_01, item_02]
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_item",
+        side_effect = [
+            None,
+            {
+                "book_id": "BK-1003",
+                "stock_quantity": 10
+            }
+        ]
+    )
+
+    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
+
+    assert res1 == [book_id] and res2 == []
+
+@pytest.mark.asyncio
+async def test_check_inv_and_stock_item_low_quantity(mocker):
+    new_order_obj = mocker.Mock()
+
+    item_01 = mocker.Mock()
+    item_01.book_id = "BK-1002"
+    item_01.quantity = 1
+
+    item_02 = mocker.Mock()
+    item_02.book_id = "BK-1003"
+    item_02.quantity = 100
+
+    new_order_obj.order_info.items = [item_01, item_02]
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.get_item",
+        side_effect = [
+            {
+                "book_id": "BK-1002",
+                "stock_quantity": 10
+            },
+            {
+                "book_id": "BK-1003",
+                "stock_quantity": 10
+            }
+        ]
+    )
+
+    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
+
+    assert res1 == [] and res2 == ["BK-1003"]
+
+@pytest.mark.asyncio
+async def test_validate_order_item_not_inv(mocker):
+    item_not_in_inv = ["BK-00000"]
+    item_not_enough_inv = []
+
+    with pytest.raises(exceptions.OrderUnprocessable):
+        res = await orders_svc.validate_order(item_not_in_inv, item_not_enough_inv)
+
+@pytest.mark.asyncio
+async def test_validate_order_item_low_qty(mocker):
+    item_not_in_inv = []
+    item_not_enough_qty = ["BK-1001"]
+
+    with pytest.raises(exceptions.OrderUnprocessable):
+        res = await orders_svc.validate_order(item_not_in_inv, item_not_enough_qty)
+
+@pytest.mark.asyncio
+async def test_validate_order_success(mocker):
+    item_not_in_inv = []
+    item_not_enough_qty = []
+
+    res = await orders_svc.validate_order(item_not_in_inv, item_not_enough_qty)
+
+    assert res == True
+
+@pytest.mark.syncio
+async def test_create_order_success(mocker):
+    mocker.patch(
+        "orders_svc.orders_svc.check_inv_and_stock",
+        return_value = [], []
+    )
+
+    mocker.patch(
+        "orders_svc.orders_svc.validate_order",
+        return_value = True
+    )
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.inventory_item_decrease",
+        return_value = None
+    )
+
+    mocker.patch(
+        "orders_svc.orders_svc.orders_repo.save_order",
+        return_value = {"status": "created"}
+    )
+
+    res = await orders_svc.

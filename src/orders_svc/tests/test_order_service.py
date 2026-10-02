@@ -282,7 +282,7 @@ async def test_create_order_success(mocker):
     )
 
     mocker.patch(
-        "orders_svc.orders_svc.orders_repo.inventory_item_decrease",
+        "orders_svc.orders_svc.inventory_item_decrease",
         return_value = None
     )
 

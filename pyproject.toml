@@ -12,6 +12,7 @@ dependencies = [
     "asyncio>=4.0.0",
     "fastapi[standard]>=0.141.1",
     "httpx2>=2.13.1",
+    "psycopg[binary]>=3.3.6",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-mock>=3.16.0",

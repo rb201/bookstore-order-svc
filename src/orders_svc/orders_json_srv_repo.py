@@ -1,8 +1,10 @@
 import logging
+import asyncio
 
 import httpx2 as httpx
 
 from orders_svc.helper import add_correlation_id_header
+from orders_svc import exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +40,32 @@ async def get_order_by_order_id(order_id: str):
 
 async def get_item(item_id):
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
-        res = await client.get(f"{inv_url}/items/{item_id}")
+        for attempt in range(3):
+            try:
+                res = await client.get(f"{inv_url}/items/{item_id}", timeout = 5)
 
-        if res.status_code == 404:
-            return None
+                if res is None:
+                    return None
 
-        return res.json()
+                return res.json()
+            except httpx.TimeoutException:
+                logger.warning(f"inventory timeout attempt: {attempt + 1}/3")
+                
+                if attempt == 2:
+                    logger.critical(f"Connection timed-out")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Connection timed-out. Order not proccessed"
+                    )
+            except httpx.TransportError:
+                logger.warning(f"inventory transport failure: {attempt + 1}/3")
+                
+                if attempt == 2:
+                    logger.critical(f"Can not connect to server")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Server unavailable. Order not proccessed"
+                    )
+
+            await asyncio.sleep(1)
 
 async def save_order(order):
     payload = order.model_dump()

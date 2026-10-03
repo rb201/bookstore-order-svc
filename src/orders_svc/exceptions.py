@@ -35,6 +35,14 @@ class OrderNotSaved(Exception):
 
         super().__init__(self.msg)
 
+class InventoryServiceUnavailableError(Exception):
+    def __init__(self, detail: str|dict):
+        self.status_code = 503
+        self.detail = detail
+        self.msg = f"Problem! {self.detail}."
+
+        super().__init__(self.msg)
+
 
 async def order_not_found_handler(request, err):
     return JSONResponse(
@@ -66,11 +74,18 @@ async def order_not_saved_handler(request, err):
         content = {"detail": err.detail}
     )
 
+async def inventory_service_unavailble_error_handler(request, err):
+    return JSONResponse(
+        status_code = err.status_code,
+        content = {"detail": err.detail}
+    )
+
 EXCEPTION_HANDLERS = {
     OrderNotFound: order_not_found_handler,
     OrderNotCancelable :order_not_cancelable_handler,
     OrderUnprocessable: order_unprocessable_handler,
-    OrderNotSaved: order_not_saved_handler
+    OrderNotSaved: order_not_saved_handler,
+    InventoryServiceUnavailableError: inventory_service_unavailble_error_handler
 }
 
 def register_exception_handlers(app: FastAPI):

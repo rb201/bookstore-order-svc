@@ -1,6 +1,6 @@
 import logging
 
-from asgi_correlation_id import CorrelationIdMiddleware
+from asgi_correlation_id import correlation_id, CorrelationIdMiddleware
 from fastapi import FastAPI, HTTPException
 
 from . import orders_svc, exceptions
@@ -27,7 +27,13 @@ async def get_all_orders(user_id: str = None):
 
 @app.get("/orders/{order_id}")
 async def get_order(order_id: str):
-    logger.info(f"Request received to retrieve order no: `{order_id}`")
+    logger.info(
+        f"Request received to retrieve order no: `{order_id}`",
+        extra = {
+            "event": "get_order_requested",
+            "correlation_id": correlation_id.get(),
+            "order_id": order_id
+        })
 
     res = await orders_svc.get_order_by_order_id(order_id)
 
@@ -40,7 +46,14 @@ async def get_order(order_id: str):
 
 @app.post("/orders")
 async def create_order(new_order: NewOrder):
-    logger.info("Request for new order received")
+    logger.info(
+        "Request for new order received",
+        extra = {
+            "event": "create_order_request",
+            "correlation_id": correlation_id.get()
+        }
+    )
+
     res = await orders_svc.create_order(new_order)
 
     if res.get("status_code") == 404:
@@ -63,7 +76,14 @@ async def create_order(new_order: NewOrder):
 
 @app.post("/orders/{order_id}/cancel")
 async def cancel_order(order_id):
-    logger.info(f"Request received to cancel order no: {order_id}")
+    logger.info(
+        f"Request received to cancel order no: {order_id}",
+        extra = {
+            "event": "cancel_order_requested",
+            "correlation_id": correlation_id.get(),
+            "order_id": order_id
+        }
+    )
     return await orders_svc.cancel_order(order_id)
 
 @app.patch("/orders/{id}/")

@@ -2,6 +2,7 @@ import logging
 import asyncio
 
 import httpx2 as httpx
+from asgi_correlation_id import correlation_id
 
 from orders_svc.helper import add_correlation_id_header
 from orders_svc import exceptions
@@ -33,7 +34,14 @@ async def get_order_by_order_id(order_id: str):
         res = await client.get(f"{url}/orders/{order_id}")
 
         if res.status_code == 404:
-            logger.info(f"ORDER_NOT_FOUND. Order no {order_id} was not found")
+            logger.info(
+                f"ORDER_NOT_FOUND. Order no {order_id} was not found",
+                extra = {
+                    "event": "order_not_found",
+                    "correlation_id": correlation_id.get(),
+                    "order_id": order_id
+                }
+            )
             return None
 
         return res.json()
@@ -97,14 +105,30 @@ async def cancel_order(order_id):
 async def inventory_item_decrease(book_id, quantity):
     payload = {"stock_quantity": quantity}
 
-    logger.info(f"Requesting reserve of {quantity} {book_id}")
+    logger.info(
+        f"Requesting reserve of {quantity} {book_id}",
+        extra = {
+            "event": "inventory_reserve_request",
+            "correlation_id": correlation_id.get(),
+            "book_id": book_id,
+            "quantity": quantity
+        }
+    )
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
         res = await client.post(
             url = f"{inv_url}/items/{book_id}/sell?stock_quantity={quantity}",
         )
 
         if res.status_code == 200:
-            logger.info(f"Reserved {quantity} of {book_id}")
+            logger.info(
+                f"Reserved {quantity} of {book_id}",
+                extra = {
+                    "event": "inventory_reserved",
+                    "correlation_id": correlation_id.get(),
+                    "book_id": book_id,
+                    "quantity": quantity
+                }
+            )
             return res.json()
 
         res.raise_for_status()

@@ -1,5 +1,7 @@
 import logging
 
+from asgi_correlation_id import correlation_id
+
 from . import orders_json_srv_repo as orders_repo
 from . import exceptions
 
@@ -21,8 +23,13 @@ async def get_order_by_order_id(order_id: str):
     return await orders_repo.get_order_by_order_id(order_id)
 
 async def check_inv_and_stock(new_order):
-    logger.info("Checking inventory availability")
-
+    logger.info(
+        "Checking inventory availability",
+        extra = {
+            "event": "inventory_availability_request",
+            "correlation_id": correlation_id.get(),
+        }
+    )
     item_not_in_inv = []
     item_not_enough_inv = []
 
@@ -31,16 +38,30 @@ async def check_inv_and_stock(new_order):
         res = await orders_repo.get_item(item.book_id)
 
         if res is None:
-            logger.info(f"Item {item.book_id} not found in inv")
+            logger.info(
+                f"Item {item.book_id} not found in inv",
+                extra = {
+                    "event": "item_not_found_in_inventory",
+                    "correlation_id": correlation_id.get(),
+                    "book_id": item.book_id
+                }
+            )
             item_not_in_inv.append(item.book_id)
             continue
 
         item_inv_qty = res.get('stock_quantity')
-        logger.info("Checking inventory")
         logger.info(f"Item {item.book_id} current stock {item_inv_qty}")
 
         if item_inv_qty < item.quantity:
-            logger.info(f"Item {item.book_id} does not have enough inv")
+            logger.info(
+                f"Item {item.book_id} does not have enough inv",
+                extra = {
+                    "event": "inventory_availability_request",
+                    "correlation_id": correlation_id.get(),
+                    "book_id": item.book_id,
+                    "current_inventory": item_inv_qty,
+                    "requested_inventory": item.quantity
+                })
             item_not_enough_inv.append(item.book_id)
 
     return item_not_in_inv, item_not_enough_inv
@@ -49,7 +70,14 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
     order_errors = []
 
     if item_not_in_inv:
-        logger.info(f"Order can not be completed. These items do not exist {item_not_in_inv}")
+        logger.info(
+            f"Order can not be completed. These items do not exist {item_not_in_inv}",
+            extra = {
+                "event": "create_order_failed",
+                "correlation_id": correlation_id.get(),
+                "items": item_not_in_inv
+            }
+        )
 
         items_not_found_error_msg = {
             "error": "ITEMS_NOT_FOUND",
@@ -59,7 +87,14 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
         order_errors.append(items_not_found_error_msg)
 
     if item_not_enough_inv:
-        logger.info(f"Order can not be completed. Insufficient inv for items {item_not_enough_inv}")
+        logger.info(
+            f"Order can not be completed. Insufficient inv for items {item_not_enough_inv}",
+            extra = {
+                "event": "create_order_failed",
+                "correlation_id": correlation_id.get(),
+                "items": item_not_enough_inv,
+            }
+            )
 
         items_not_enough_inv_msg = {
             "error": "INSUFFICIENT_INV",
@@ -80,6 +115,8 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
 
     return True
 
+# big problem: what if i reserve but can't post order and therefore give back reserve
+# maybe need a reservation system
 async def create_order(new_order):
     item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
 
@@ -87,7 +124,15 @@ async def create_order(new_order):
 
     if not order_validated: return
 
-    logger.info("Order has been validated. Reserving items")
+    logger.info(
+        "Order has been validated. Reserving items",
+        extra = {
+            "event": "create_order_validated",
+            "correlation_id": correlation_id.get(),
+            "user_id": new_order.user_id
+        }
+    )
+
     for item in new_order.order_info.items:
         book_id = item.book_id
         quantity = item.quantity
@@ -123,7 +168,14 @@ async def cancel_order(order_id):
     res = await get_order_by_order_id(order_id)
 
     if res is None:
-        logger.info(f"Cancel order request failed. Order {order_id} not found.")
+        logger.info(
+            f"Cancel order request failed. Order {order_id} not found.",
+            extra = {
+                "event": "cancel_order_failed",
+                "correlation_id": correlation_id.get(),
+                "order_id": order_id
+            }
+        )
 
         raise exceptions.OrderNotFound(
             order_id = order_id,
@@ -133,7 +185,13 @@ async def cancel_order(order_id):
     order_status = res.get("status")
 
     if order_status not in cancelable_orders:
-        logger.info(f"Order can not be cancelled. Current state: {order_status}")
+        logger.info(
+            f"Order can not be cancelled. Current state: {order_status}",
+            extra = {
+                "event": "cancel_order_failed",
+                "correlation_id": correlation_id.get(),
+                "order_id": order_id
+            })
 
         raise exceptions.OrderNotCancelable(
             order_id = order_id,

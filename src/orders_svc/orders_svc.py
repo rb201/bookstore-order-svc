@@ -93,7 +93,7 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
                 "correlation_id": correlation_id.get(),
                 "items": item_not_enough_inv,
             }
-            )
+        )
 
         items_not_enough_inv_msg = {
             "error": "INSUFFICIENT_INV",
@@ -142,11 +142,6 @@ async def create_order(new_order: NewOrder):
     try:
         return await orders_repo.save_order(new_order)
     except Exception as err:
-        req_url = err.request.url
-        req_method = err.request.method
-        status_code = err.response.status_code
-        msg = f"Failed with {status_code} on {req_method} {req_url}"
-
         for item in new_order.order_info.items:
             book_id = item.book_id
             quantity = item.quantity
@@ -154,9 +149,9 @@ async def create_order(new_order: NewOrder):
             # try/catch here for retry
             await orders_repo.inventory_item_increase(book_id, quantity)
 
-        raise exceptions.OrderNotSaved(
-            detail = "Not sure what happened"
-        )
+        # raise exceptions.OrderNotSaved(
+        #     detail = "Not sure what happened"
+        # )
 
 async def cancel_order(order_id):
     cancelable_orders = [

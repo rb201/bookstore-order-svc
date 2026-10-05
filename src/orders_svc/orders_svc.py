@@ -2,8 +2,9 @@ import logging
 
 from asgi_correlation_id import correlation_id
 
-from . import orders_json_srv_repo as orders_repo
+from . import orders_repo
 from . import exceptions
+from orders_svc.schemas import NewOrder
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +12,11 @@ async def get_all_orders(user_id: str = None):
     if user_id is not None:
         logger.info(f"Fetching orders for {user_id}")
 
-        res = await orders_repo.get_all_orders_by_user_id(user_id)
-    else:
-        logger.info(f"Fetching all orders")
+        return await orders_repo.get_all_orders_by_user_id(user_id)
 
-        res = await orders_repo.get_all_orders()
+    logger.info(f"Fetching all orders")
 
-    return res
+    return await orders_repo.get_all_orders()
 
 async def get_order_by_order_id(order_id: str):
     return await orders_repo.get_order_by_order_id(order_id)
@@ -117,7 +116,7 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
 
 # big problem: what if i reserve but can't post order and therefore give back reserve
 # maybe need a reservation system
-async def create_order(new_order):
+async def create_order(new_order: NewOrder):
     item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
 
     order_validated = await validate_order(item_not_in_inv, item_not_enough_inv)

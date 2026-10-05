@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: orders-pg
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: orders
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/inv-data
+
+volumes:
+  postgres_data:

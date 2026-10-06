@@ -1,0 +1,8 @@
+.venv
+__pycache__
+.uv
+.git
+database/
+json-srv/
+docker-compose.yml
+.pytest*

@@ -63,7 +63,7 @@ async def get_item(item_id):
         for attempt in range(3):
             try:
                 url = f"{INV_URL}/items/{item_id}"
-                res = await client.get(url, timeout = 5)
+                res = await client.get(url, timeout = 3)
 
                 # TODO
                 # maybe return [] from api svc
@@ -102,36 +102,78 @@ async def inventory_item_decrease(book_id, quantity):
             "quantity": quantity
         }
     )
+
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
-        res = await client.post(
-            url = f"{INV_URL}/items/{book_id}/sell?stock_quantity={quantity}",
-        )
+        for attempt in range(3):
+            try:
+                res = await client.post(
+                    url = f"{INV_URL}/items/{book_id}/sell?stock_quantity={quantity}",
+                )
 
-        if res.status_code == 200:
-            logger.info(
-                f"Reserved {quantity} of {book_id}",
-                extra = {
-                    "event": "inventory_reserved",
-                    "correlation_id": correlation_id.get(),
-                    "book_id": book_id,
-                    "quantity": quantity
-                }
-            )
-            return res.json()
+                if res.status_code == 200:
+                    logger.info(
+                        f"Reserved {quantity} of {book_id}",
+                        extra = {
+                            "event": "inventory_reserved",
+                            "correlation_id": correlation_id.get(),
+                            "book_id": book_id,
+                            "quantity": quantity
+                        }
+                    )
+                    return res.json()
 
-        res.raise_for_status()
+                res.raise_for_status()
+            except httpx.TimeoutException:
+                logger.warning(f"inventory timeout attempt: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Connection timed-out")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Connection timed-out. Order not proccessed"
+                    )
+            except httpx.TransportError:
+                logger.warning(f"inventory transport failure: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Can not connect to server")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Server unavailable. Order not proccessed"
+                    )
+
+            await asyncio.sleep(1)
 
 async def inventory_item_increase(book_id, quantity):
     payload = {"stock_quantity": quantity}
 
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
-        res = await client.post(f"{INV_URL}/items/{book_id}/receive?stock_quantity={quantity}")
+        for attempt in range(3):
+            try:
+                res = await client.post(f"{INV_URL}/items/{book_id}/receive?stock_quantity={quantity}")
 
-        if res.status_code == 200:
-            logger.info(f"Unreserved {quantity} of {book_id}")
-            return
+                if res.status_code == 200:
+                    logger.info(f"Unreserved {quantity} of {book_id}")
+                    return
 
-        return {"error": f"seomthing happened {res}"}
+                return {"error": f"seomthing happened {res}"}
+
+            except httpx.TimeoutException:
+                logger.warning(f"inventory timeout attempt: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Connection timed-out")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Connection timed-out. Order not proccessed"
+                    )
+            except httpx.TransportError:
+                logger.warning(f"inventory transport failure: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Can not connect to server")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Server unavailable. Order not proccessed"
+                    )
+
+            await asyncio.sleep(1)
 
 async def save_order(new_order: NewOrder):
     order = new_order.model_dump()

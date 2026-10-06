@@ -512,6 +512,10 @@ dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx2" },
     { name = "psycopg", extra = ["binary"] },
+]
+
+[package.dev-dependencies]
+dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
@@ -525,6 +529,10 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
     { name = "httpx2", specifier = ">=2.13.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
+]
+
+[package.metadata.requires-dev]
+dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-mock", specifier = ">=3.16.0" },

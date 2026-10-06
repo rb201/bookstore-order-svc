@@ -14,9 +14,6 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "httpx2>=2.13.1",
     "psycopg[binary]>=3.3.6",
-    "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
-    "pytest-mock>=3.16.0",
 ]
 
 [project.scripts]
@@ -29,4 +26,11 @@ build-backend = "uv_build"
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore:The anyio\\.abc\\.BlockingPortal alias is deprecated:DeprecationWarning",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-mock>=3.16.0",
 ]

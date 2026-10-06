@@ -1,10 +1,12 @@
 import logging
+import os
 from uuid import uuid4
 
 import asyncio
 import httpx2 as httpx
-from asgi_correlation_id import correlation_id
 import psycopg
+from asgi_correlation_id import correlation_id
+from dotenv import load_dotenv
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
@@ -14,7 +16,10 @@ from orders_svc.schemas import NewOrder
 
 logger = logging.getLogger(__name__)
 
-inv_url = "http://localhost:8000"
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+INV_URL = os.getenv("INV_URL")
 
 async def get_all_orders():
     async with await AsyncConnection.connect(DATABASE_URL, row_factory = dict_row) as conn:
@@ -57,7 +62,7 @@ async def get_item(item_id):
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
         for attempt in range(3):
             try:
-                url = f"{inv_url}/items/{item_id}"
+                url = f"{INV_URL}/items/{item_id}"
                 res = await client.get(url, timeout = 5)
 
                 # TODO
@@ -99,7 +104,7 @@ async def inventory_item_decrease(book_id, quantity):
     )
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
         res = await client.post(
-            url = f"{inv_url}/items/{book_id}/sell?stock_quantity={quantity}",
+            url = f"{INV_URL}/items/{book_id}/sell?stock_quantity={quantity}",
         )
 
         if res.status_code == 200:
@@ -120,7 +125,7 @@ async def inventory_item_increase(book_id, quantity):
     payload = {"stock_quantity": quantity}
 
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
-        res = await client.post(f"{inv_url}/items/{book_id}/receive?stock_quantity={quantity}")
+        res = await client.post(f"{INV_URL}/items/{book_id}/receive?stock_quantity={quantity}")
 
         if res.status_code == 200:
             logger.info(f"Unreserved {quantity} of {book_id}")

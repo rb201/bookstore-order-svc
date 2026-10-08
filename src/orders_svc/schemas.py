@@ -19,3 +19,7 @@ class NewOrder(BaseModel):
     status: str
     created_at: str
     order_info: OrderInfo
+
+class InventoryReservationRequest(BaseModel):
+    reservation_id: str
+    items: list[OrderItem]

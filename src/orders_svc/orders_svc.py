@@ -1,10 +1,11 @@
 import logging
+from uuid import uuid4
 
 from asgi_correlation_id import correlation_id
 
 from . import orders_repo
 from . import exceptions
-from orders_svc.schemas import NewOrder
+from orders_svc.schemas import NewOrder, InventoryReservationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -21,49 +22,25 @@ async def get_all_orders(user_id: str = None):
 async def get_order_by_order_id(order_id: str):
     return await orders_repo.get_order_by_order_id(order_id)
 
-async def check_inv_and_stock(new_order):
+async def request_inventory_check(new_order):
+    reservation_id = str(uuid4())
+    new_order_items = new_order.order_info.items
+
+    request_reserve = InventoryReservationRequest(
+        reservation_id = reservation_id,
+        items = new_order_items
+    ).model_dump()
+
     logger.info(
-        "Checking inventory availability",
+        "Sneding order to Inventory for availability check",
         extra = {
             "event": "inventory_availability_request",
             "correlation_id": correlation_id.get(),
         }
     )
-    item_not_in_inv = []
-    item_not_enough_inv = []
 
-    for item in new_order.order_info.items:
-        logger.info(f"OrderItem: Item {item.book_id}: qty {item.quantity}")
-        res = await orders_repo.get_item(item.book_id)
-
-        if res is None:
-            logger.info(
-                f"Item {item.book_id} not found in inv",
-                extra = {
-                    "event": "item_not_found_in_inventory",
-                    "correlation_id": correlation_id.get(),
-                    "book_id": item.book_id
-                }
-            )
-            item_not_in_inv.append(item.book_id)
-            continue
-
-        item_inv_qty = res.get('stock_quantity')
-        logger.info(f"Item {item.book_id} current stock {item_inv_qty}")
-
-        if item_inv_qty < item.quantity:
-            logger.info(
-                f"Item {item.book_id} does not have enough inv",
-                extra = {
-                    "event": "inventory_availability_request",
-                    "correlation_id": correlation_id.get(),
-                    "book_id": item.book_id,
-                    "current_inventory": item_inv_qty,
-                    "requested_inventory": item.quantity
-                })
-            item_not_enough_inv.append(item.book_id)
-
-    return item_not_in_inv, item_not_enough_inv
+    res = await orders_repo.request_inventory_check(request_reserve)
+    return res
 
 async def validate_order(item_not_in_inv, item_not_enough_inv):
     order_errors = []
@@ -114,44 +91,8 @@ async def validate_order(item_not_in_inv, item_not_enough_inv):
 
     return True
 
-# big problem: what if i reserve but can't post order and therefore give back reserve
-# maybe need a reservation system
 async def create_order(new_order: NewOrder):
-    item_not_in_inv, item_not_enough_inv = await check_inv_and_stock(new_order)
-
-    order_validated = await validate_order(item_not_in_inv, item_not_enough_inv)
-
-    if not order_validated: return
-
-    logger.info(
-        "Order has been validated. Reserving items",
-        extra = {
-            "event": "create_order_validated",
-            "correlation_id": correlation_id.get(),
-            "user_id": new_order.user_id
-        }
-    )
-
-    for item in new_order.order_info.items:
-        book_id = item.book_id
-        quantity = item.quantity
-
-        # try/catch here;retry
-        res = await orders_repo.inventory_item_decrease(book_id, quantity)
-
-    try:
-        return await orders_repo.save_order(new_order)
-    except Exception as err:
-        for item in new_order.order_info.items:
-            book_id = item.book_id
-            quantity = item.quantity
-
-            # try/catch here for retry
-            await orders_repo.inventory_item_increase(book_id, quantity)
-
-        # raise exceptions.OrderNotSaved(
-        #     detail = "Not sure what happened"
-        # )
+    return await request_inventory_check(new_order)
 
 async def cancel_order(order_id):
     cancelable_orders = [

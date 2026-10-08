@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from uuid import uuid4
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+DATABASE_URL = f"{os.getenv("DATABASE_URL")}/orders"
 DATABASE_URL = os.getenv("DATABASE_URL")
 INV_URL = os.getenv("INV_URL")
 
@@ -262,3 +264,38 @@ async def cancel_order(order_id: str):
             )
 
             return {"order_id": order_id, "status": updated_row.get("status")}
+
+async def request_inventory_check(inventory_reserve_request):
+    async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:
+        for attempt in range(3):
+            try:
+                res = await client.post(
+                    url = f"{INV_URL}/inventory/check",
+                    timeout = 1,
+                    json = inventory_reserve_request
+                )
+
+                if res.json().get("error") == "ORDER_UNPROCESSABLE":
+                    raise exceptions.OrderUnprocessable(
+                        detail = f"{res.json().get("msg")}: {res.json().get("details")}"
+                    )
+
+                return res.json()
+            except httpx.TimeoutException:
+                logger.warning(f"inventory timeout attempt: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Connection timed-out")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Connection timed-out. Order not proccessed"
+                    )
+            except httpx.TransportError:
+                logger.warning(f"inventory transport failure: {attempt + 1}/3")
+
+                if attempt == 2:
+                    logger.critical(f"Can not connect to server")
+                    raise exceptions.InventoryServiceUnavailableError(
+                        detail = "Server unavailable. Order not proccessed"
+                    )
+
+            await asyncio.sleep(1)

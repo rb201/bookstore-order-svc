@@ -1,6 +1,6 @@
 import pytest
 
-from orders_svc import orders_svc, exceptions
+from orders_svc import orders_svc, exceptions, schemas
 
 @pytest.mark.asyncio
 async def test_get_all_orders_for_user_doesnt_exists(mocker):
@@ -139,100 +139,6 @@ async def test_cancel_order_success(mocker):
     assert res["status"] == "cancelled"
 
 @pytest.mark.asyncio
-async def test_check_inv_and_stock_success(mocker):
-    new_order_obj = mocker.Mock()
-
-    item_01 = mocker.Mock()
-    item_01.book_id = "BK-1002"
-    item_01.quantity = 1
-
-    item_02 = mocker.Mock()
-    item_02.book_id = "BK-1003"
-    item_02.quantity = 1
-
-    new_order_obj.order_info.items = [item_01, item_02]
-
-    mocker.patch(
-        "orders_svc.orders_svc.orders_repo.get_item",
-        side_effect = [
-            {
-                "book_id": "BK-1002",
-                "stock_quantity": 10
-            },
-            {
-                "book_id": "BK-1003",
-                "stock_quantity": 10
-            }
-        ]
-    )
-
-    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
-
-    assert res1 == [] and res2 == []
-
-@pytest.mark.asyncio
-async def test_check_inv_and_stock_item_doesnt_exists(mocker):
-    book_id = "BK-0000000"
-    new_order_obj = mocker.Mock()
-
-    item_01 = mocker.Mock()
-    item_01.book_id = book_id
-    item_01.quantity = 1
-
-    item_02 = mocker.Mock()
-    item_02.book_id = "BK-1003"
-    item_02.quantity = 1
-
-    new_order_obj.order_info.items = [item_01, item_02]
-
-    mocker.patch(
-        "orders_svc.orders_svc.orders_repo.get_item",
-        side_effect = [
-            None,
-            {
-                "book_id": "BK-1003",
-                "stock_quantity": 10
-            }
-        ]
-    )
-
-    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
-
-    assert res1 == [book_id] and res2 == []
-
-@pytest.mark.asyncio
-async def test_check_inv_and_stock_item_low_quantity(mocker):
-    new_order_obj = mocker.Mock()
-
-    item_01 = mocker.Mock()
-    item_01.book_id = "BK-1002"
-    item_01.quantity = 1
-
-    item_02 = mocker.Mock()
-    item_02.book_id = "BK-1003"
-    item_02.quantity = 100
-
-    new_order_obj.order_info.items = [item_01, item_02]
-
-    mocker.patch(
-        "orders_svc.orders_svc.orders_repo.get_item",
-        side_effect = [
-            {
-                "book_id": "BK-1002",
-                "stock_quantity": 10
-            },
-            {
-                "book_id": "BK-1003",
-                "stock_quantity": 10
-            }
-        ]
-    )
-
-    res1, res2 = await orders_svc.check_inv_and_stock(new_order_obj)
-
-    assert res1 == [] and res2 == ["BK-1003"]
-
-@pytest.mark.asyncio
 async def test_validate_order_item_not_inv(mocker):
     item_not_in_inv = ["BK-00000"]
     item_not_enough_inv = []
@@ -259,38 +165,29 @@ async def test_validate_order_success(mocker):
 
 @pytest.mark.asyncio
 async def test_create_order_success(mocker):
-    new_order_obj = mocker.Mock()
-
-    item_01 = mocker.Mock()
-    item_01.book_id = "BK-1002"
+    new_order_obj = mocker.Mock(spec = schemas.NewOrder)
+    order_info_obj = mocker.Mock(spec = schemas.OrderInfo)
+    item_01 = mocker.Mock(spec = schemas.OrderItem)
+    item_01.book_id = "1"
     item_01.quantity = 1
 
-    item_02 = mocker.Mock()
-    item_02.book_id = "BK-1003"
+    item_02 = mocker.Mock(spec = schemas.OrderItem)
+    item_02.book_id = "2"
     item_02.quantity = 100
 
+    new_order_obj.order_info = order_info_obj
     new_order_obj.order_info.items = [item_01, item_02]
 
     mocker.patch(
-        "orders_svc.orders_svc.check_inv_and_stock",
-        return_value = ([], [])
-    )
-
-    mocker.patch(
-        "orders_svc.orders_svc.validate_order",
-        return_value = True
-    )
-
-    mocker.patch(
-        "orders_svc.orders_svc.orders_repo.inventory_item_decrease",
-        return_value = None
+        "orders_svc.orders_svc.orders_repo.request_inventory_check",
+        return_value = {"msg": "ok"}
     )
 
     mocker.patch(
         "orders_svc.orders_svc.orders_repo.save_order",
-        return_value = {"status": "created"}
+        return_value = {"order_id": "6ff98f7c-bb89-4880-bdb5-0cc79ae69b8e"}
     )
 
     res = await orders_svc.create_order(new_order_obj)
 
-    assert res["status"] == "created"
+    assert res["order_id"] == "6ff98f7c-bb89-4880-bdb5-0cc79ae69b8e"

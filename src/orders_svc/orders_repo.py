@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-DATABASE_URL = f"{os.getenv("DATABASE_URL")}/orders"
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL") + "/orders"
 INV_URL = os.getenv("INV_URL")
 
 async def get_all_orders():
@@ -177,7 +176,7 @@ async def inventory_item_increase(book_id, quantity):
 
             await asyncio.sleep(1)
 
-async def save_order(new_order: NewOrder):
+async def save_order(new_order: NewOrder, reservation_id: str):
     order = new_order.model_dump()
     ordered_items = order["order_info"]["items"]
     order_id = str(uuid4())
@@ -187,11 +186,11 @@ async def save_order(new_order: NewOrder):
             try:
                 await cur.execute(
                     """
-                    INSERT INTO orders (order_id, user_id, status, created_at, total_items, total_price)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO orders (order_id, user_id, status, created_at, total_items, total_price, reservation_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING order_id, status
                     """,
-                    (order_id, order["user_id"], order["status"], order["created_at"], order["order_info"]["total_items"], order["order_info"]["total_price"])
+                    (order_id, order["user_id"], order["status"], order["created_at"], order["order_info"]["total_items"], order["order_info"]["total_price"], reservation_id)
                 )
 
                 # TODO validate insert
@@ -270,7 +269,7 @@ async def request_inventory_check(inventory_reserve_request):
         for attempt in range(3):
             try:
                 res = await client.post(
-                    url = f"{INV_URL}/inventory/check",
+                    url = f"{INV_URL}/inventory/reserve",
                     timeout = 1,
                     json = inventory_reserve_request
                 )

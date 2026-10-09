@@ -32,7 +32,7 @@ async def request_inventory_check(new_order):
     ).model_dump()
 
     logger.info(
-        "Sneding order to Inventory for availability check",
+        "Sending order to Inventory for availability check",
         extra = {
             "event": "inventory_availability_request",
             "correlation_id": correlation_id.get(),
@@ -40,6 +40,9 @@ async def request_inventory_check(new_order):
     )
 
     res = await orders_repo.request_inventory_check(request_reserve)
+
+    if res["msg"] == "ok":
+        return await orders_repo.save_order(new_order, reservation_id)
     return res
 
 async def validate_order(item_not_in_inv, item_not_enough_inv):

@@ -57,7 +57,7 @@ async def get_order_by_order_id(order_id: str):
                 (order_id,)
             )
 
-            return await cur.fetchall()
+            return await cur.fetchone()
 
 async def get_item(item_id):
     async with httpx.AsyncClient(event_hooks={"request": [add_correlation_id_header]}) as client:

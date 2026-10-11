@@ -46,6 +46,7 @@ async def request_inventory_check(new_order):
     return res
 
 async def validate_order(item_not_in_inv, item_not_enough_inv):
+    """ Need to improve the messaging """
     order_errors = []
 
     if item_not_in_inv:
